@@ -38,6 +38,9 @@ opts = OptionParser.new do |o|
   o.on("--passenger") do
     @passenger = true
   end
+  o.on("--US") do
+    @union_station = true
+  end
   o.on("-u", "--unicorn", "Use unicorn to serve pages as opposed to thin") do
     @unicorn = true
   end
@@ -177,7 +180,7 @@ begin
   run("bundle exec rake assets:precompile")
 
   pid = if @passenger
-          spawn("passenger start -p #{@port} 1>/dev/null")
+          spawn("passenger start -p #{@port} #{ @union_station ? "--union-station-key #{ENV['USKEY']}": ""} 1>/dev/null")
         elsif @unicorn
           ENV['UNICORN_PORT'] = @port.to_s
           FileUtils.mkdir_p(File.join('tmp', 'pids'))
