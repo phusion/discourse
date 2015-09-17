@@ -35,6 +35,9 @@ opts = OptionParser.new do |o|
   o.on("-m", "--memory_stats") do
     @mem_stats = true
   end
+  o.on("--passenger") do
+    @passenger = true
+  end
   o.on("-u", "--unicorn", "Use unicorn to serve pages as opposed to thin") do
     @unicorn = true
   end
@@ -155,7 +158,7 @@ api_key = `bundle exec rake api_key:get`.split("\n")[-1]
 def bench(path)
   puts "Running apache bench warmup"
   add = ""
-  add = "-c 3 " if @unicorn
+  add = "-c 3 " if @unicorn || @passenger
   `ab #{add} -n 10 "http://127.0.0.1:#{@port}#{path}"`
   puts "Benchmarking #{path}"
   `ab -n #{@iterations} -e tmp/ab.csv "http://127.0.0.1:#{@port}#{path}"`
@@ -173,7 +176,9 @@ begin
   puts "precompiling assets"
   run("bundle exec rake assets:precompile")
 
-  pid = if @unicorn
+  pid = if @passenger
+          spawn("passenger start -p #{@port} 1>/dev/null")
+        elsif @unicorn
           ENV['UNICORN_PORT'] = @port.to_s
           FileUtils.mkdir_p(File.join('tmp', 'pids'))
           spawn("bundle exec unicorn -c config/unicorn.conf.rb")
@@ -244,6 +249,7 @@ begin
     "pss_kb" => mem["pss_kb"]
   }).merge(facts)
 
+  # TODO do this for passenger too
   if @unicorn
     child_pids = `ps --ppid #{pid} | awk '{ print $1; }' | grep -v PID`.split("\n")
     child_pids.each do |child|
